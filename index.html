@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Programaciones MARK — Reprogramación, Webs y Tiendas Online</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+
+<!-- Firebase SDK -->
+<script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+
+<style>
+:root{--ink:#f8f8ff;--muted:#b7a8ff;--pri:#8b5cf6;--pri2:#a78bfa;--glass:rgba(10,10,18,.55);
+--shadow:0 10px 35px rgba(139,92,246,.25);--border:1px solid rgba(167,139,250,.35);--bg:#05010d}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);overflow-x:hidden}
+
+/* Fondo galaxia + aurora + estrellas + cometas */
+#galaxy-bg{position:fixed;inset:0;z-index:-5;background:url('https://cdn.jsdelivr.net/gh/itsjavi/static-assets/space/galaxy-stars.jpg') center/cover no-repeat;filter:brightness(.35) saturate(1.2)}
+#aurora{position:fixed;inset:-12vmax;z-index:-4;filter:blur(32px) saturate(1.25);opacity:.55;pointer-events:none}
+#aurora .blob{position:absolute;width:40vmax;height:40vmax;border-radius:50%;
+  background:radial-gradient(closest-side,rgba(255,255,255,.22),rgba(167,139,250,.25)35%,rgba(139,92,246,.18)60%,transparent 70%);
+  mix-blend-mode:screen;animation:float var(--dur) linear infinite;transform:translate3d(var(--x),var(--y),0) scale(var(--s))}
+@keyframes float{0%{transform:translate3d(var(--x),var(--y),0)scale(var(--s))rotate(0)}50%{transform:translate3d(calc(var(--x)+10vmax),calc(var(--y)+6vmax),0)scale(calc(var(--s)*1.1))rotate(130deg)}100%{transform:translate3d(var(--x),var(--y),0)scale(var(--s))rotate(360deg)}}
+#stars{position:fixed;inset:0;z-index:-3}
+#sky{position:fixed;inset:0;z-index:-1;pointer-events:none;mix-blend-mode:screen}
+.comet{position:absolute;width:180px;height:3px;transform:rotate(-24deg);opacity:0}
+.comet .tail{position:absolute;inset:0;background:linear-gradient(90deg,rgba(255,255,255,.95)0%,rgba(210,190,255,.85)18%,rgba(160,110,255,.6)55%,rgba(110,60,230,0)100%);border-radius:999px;filter:blur(1px)}
+.comet .head{position:absolute;right:-5px;top:50%;width:10px;height:10px;transform:translateY(-50%);background:radial-gradient(circle at 30% 30%,#fff 0%,#fef 35%,#a78bfa 70%,transparent 72%);border-radius:50%;box-shadow:0 0 10px #fff,0 0 25px #a78bfa,0 0 40px #8b5cf6}
+@keyframes fly{0%{transform:translate3d(var(--sx),var(--sy),0)rotate(var(--rot));opacity:0}5%{opacity:1}95%{opacity:1}100%{transform:translate3d(var(--ex),var(--ey),0)rotate(var(--rot));opacity:0}}
+
+/* Cabecera + título */
+header{position:fixed;top:0;left:0;right:0;height:64px;display:flex;align-items:center;gap:12px;padding:0 16px;background:rgba(0,0,0,.55);backdrop-filter:blur(10px);border-bottom:var(--border);z-index:20;justify-content:center}
+.brand{display:flex;align-items:center;gap:10px;justify-content:center;width:100%}
+.brand img{width:44px;height:44px;border-radius:10px;box-shadow:var(--shadow);object-fit:cover}
+.brand h1{font-size:20px;font-weight:800;background:linear-gradient(90deg,#8b5cf6 0%,#a78bfa 50%,#ffffff 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+
+/* Menú dock + preview */
+.nav-dock{position:fixed;top:88px;left:16px;display:flex;flex-direction:column;gap:10px;padding:12px;border:var(--border);border-radius:22px;background:var(--glass);backdrop-filter:blur(12px);box-shadow:var(--shadow);z-index:15}
+.nav-btn{width:54px;height:54px;display:grid;place-items:center;border-radius:14px;border:1px solid rgba(167,139,250,.25);background:rgba(255,255,255,.03);color:var(--muted);cursor:pointer;transition:all .2s}
+.nav-btn:hover{background:rgba(255,255,255,.1);color:#fff;transform:translateY(-2px)}
+.nav-btn[aria-current="true"]{background:linear-gradient(180deg,rgba(167,139,250,.35),rgba(139,92,246,.18));color:#000;border-color:rgba(167,139,250,.9)}
+.nav-btn svg{width:24px;height:24px}
+#preview{position:fixed;left:86px;top:88px;z-index:16;min-width:240px;max-width:320px;background:rgba(0,0,0,.7);backdrop-filter:blur(10px);border:var(--border);border-radius:14px;box-shadow:var(--shadow);padding:10px 12px;display:none}
+#preview h4{margin:0 0 6px;color:#fff;font-size:14px}
+#preview p{margin:0;color:#dcd6ff;font-size:13px;line-height:1.3}
+
+/* Secciones + transiciones */
+main{padding:88px 24px 40px 96px;max-width:1200px;margin:0 auto}
+.section{display:none;border:1px solid rgba(139,92,246,.25);border-radius:14px;background:rgba(255,255,255,.05);box-shadow:var(--shadow);margin-bottom:18px;overflow:hidden}
+.section[data-active="true"]{display:block}
+@keyframes fadeOutDown{from{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(10px)}}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.section.anim-out{animation:fadeOutDown .22s ease both}
+.section.anim-in{animation:fadeInUp .30s ease both}
+
+.sec-head{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;background:rgba(255,255,255,.03)}
+.sec-head h2{color:var(--pri2);font-size:20px}
+.viewers{background:rgba(255,255,255,.1);border:1px solid rgba(139,92,246,.35);color:var(--pri2);padding:4px 10px;border-radius:999px;font-size:12px}
+.sec-body{padding:16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;margin:10px 0}
+.card{background:rgba(255,255,255,.06);border-radius:14px;padding:16px;border:1px solid rgba(139,92,246,.2)}
+.card h3{margin:0 0 6px;color:var(--pri2)}
+.pill{background:var(--pri);color:#fff;padding:6px 10px;border-radius:999px;font-size:13px;display:inline-block}
+footer{border-top:1px solid rgba(139,92,246,.35);margin-top:24px;padding-top:16px;text-align:center;color:var(--muted);font-size:14px}
+
+/* Panel IA */
+.ai-box{margin-top:16px;border:1px solid rgba(167,139,250,.35);border-radius:14px;background:rgba(0,0,0,.35);backdrop-filter:blur(8px);box-shadow:var(--shadow)}
+.ai-head{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid rgba(167,139,250,.25);color:#fff}
+.ai-head svg{width:18px;height:18px}
+.ai-messages{max-height:220px;overflow:auto;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.ai-msg{padding:10px 12px;border-radius:12px;font-size:14px;line-height:1.35}
+.ai-msg.user{align-self:flex-end;background:rgba(167,139,250,.25);border:1px solid rgba(167,139,250,.4)}
+.ai-msg.bot{align-self:flex-start;background:rgba(255,255,255,.06);border:1px solid rgba(139,92,246,.25)}
+.ai-input{display:flex;gap:8px;padding:10px 12px;border-top:1px solid rgba(167,139,250,.25)}
+.ai-input input{flex:1;padding:10px 12px;border-radius:10px;border:1px solid rgba(139,92,246,.35);background:rgba(0,0,0,.35);color:#fff}
+.ai-input button{padding:10px 14px;border-radius:10px;border:1px solid rgba(167,139,250,.6);background:var(--pri2);color:#000;font-weight:800;cursor:pointer}
+
+/* Formularios */
+.panel{background:rgba(255,255,255,.06);border:1px solid rgba(139,92,246,.25);border-radius:16px;padding:16px;box-shadow:var(--shadow)}
+label{font-size:13px;font-weight:600;margin-bottom:6px;display:block}
+input,textarea{width:100%;padding:12px 14px;border-radius:10px;border:1px solid rgba(139,92,246,.35);margin-bottom:12px;background:rgba(0,0,0,.4);color:#fff;font-size:15px}
+input:focus,textarea:focus{outline:none;border-color:var(--pri2)}
+button[type=submit], .btn{background:var(--pri2);color:#000;border:none;padding:12px 16px;border-radius:10px;cursor:pointer;font-weight:800}
+button[type=submit]:hover,.btn:hover{background:#fff}
+#fs-status{margin-left:10px;color:var(--muted);font-size:13px}
+
+/* Botones fijos de acción (solo visibles cuando #precios está activo) */
+.floating-btns{position:fixed;bottom:22px;right:22px;display:flex;flex-direction:column;gap:12px;z-index:50}
+.floating-btns a{display:flex;align-items:center;justify-content:center;gap:6px;text-decoration:none;font-weight:700;font-size:14px;border-radius:999px;padding:12px 18px;color:#fff;background:linear-gradient(90deg,#8b5cf6 0%,#a78bfa 100%);box-shadow:0 4px 15px rgba(139,92,246,.4);transition:transform .2s,box-shadow .2s}
+.floating-btns a:hover{transform:translateY(-3px);box-shadow:0 6px 18px rgba(139,92,246,.6)}
+.floating-btns a.telegram{background:linear-gradient(90deg,#229ED9 0%,#63c8f3 100%)}
+.floating-btns a svg{width:18px;height:18px;fill:#fff}
+@media(max-width:900px){.nav-dock{flex-direction:row;top:auto;bottom:16px;left:50%;transform:translateX(-50%)}#preview{display:none!important}main{padding:88px 16px 96px}}
+</style>
+</head>
+<body>
+<div id="galaxy-bg"></div><div id="aurora"></div><canvas id="stars"></canvas><div id="sky"></div>
+<div id="preview" role="status" aria-live="polite"></div>
+
+<header>
+  <div class="brand">
+    <h1 id="brandTitle" aria-label="Programaciones MARK">????????????</h1>
+  </div>
+</header>
+
+<nav class="nav-dock" role="tablist" aria-label="Secciones">
+  <button class="nav-btn" data-target="indice" aria-current="true" title="Índice"
+          data-title="Índice" data-desc="Quién soy, servicios y enlaces de contacto.">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l9 8h-3v9h-5v-6H11v6H6v-9H3l9-8z"/></svg>
+  </button>
+  <button class="nav-btn" data-target="precios" aria-current="false" title="Precios"
+          data-title="Precios y Producto" data-desc="Reprogramación 199 €, Web 499 €, Tienda 399 €.">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 11l-8.3-8.3a1 1 0 00-.7-.3H4a1 1 0 00-1 1v8a1 1 0 00.3.7L11 21a1 1 0 001.4 0L21 12.4a1 1 0 000-1.4zM7.5 8A1.5 1.5 0 109 6.5 1.5 1.5 0 007.5 8z"/></svg>
+  </button>
+  <button class="nav-btn" data-target="contacto" aria-current="false" title="Horario y Contacto"
+          data-title="Horario y Contacto" data-desc="L-V 10–14 | 18–22. Formulario a tu email.">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 2h2v2h6V2h2v2h3a2 2 0 012 2v14a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2h3V2zm13 8H4v10h16V10z"/></svg>
+  </button>
+  <button class="nav-btn" data-target="reviews" aria-current="false" title="Reseñas"
+          data-title="Reseñas" data-desc="Valoraciones con estrellas y comentarios.">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 17.3l6.18 3.7-1.64-7.03L21 9.24l-7.19-.61L12 2 10.19 8.63 3 9.24l4.46 4.73L5.82 21z"/></svg>
+  </button>
+  <button class="nav-btn" data-target="cuenta" aria-current="false" title="Cuenta"
+          data-title="Cuenta" data-desc="Crear cuenta, iniciar sesión y salir.">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12a5 5 0 100-10 5 5 0 000 10zm0 2c-5 0-9 2.5-9 5.5V22h18v-2.5C21 16.5 17 14 12 14z"/></svg>
+  </button>
+  <button class="nav-btn" data-target="terminos" aria-current="false" title="Términos"
+          data-title="Términos y Condiciones" data-desc="Condiciones de uso del servicio.">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm8 1.5V7h3.5L14 3.5zM7 9h10v2H7V9zm0 4h10v2H7v-2zm0 4h7v2H7v-2z"/></svg>
+  </button>
+</nav>
+
+<main>
+  <!-- Índice -->
+  <section id="indice" class="section" data-active="true">
+    <div class="sec-head"><h2>Índice <span class="viewers" id="v-indice">👀 8 viendo</span></h2></div>
+    <div class="sec-body">
+      <div class="card"><h3>Quién soy</h3>
+        <p>Nací en 2008 en Holanda. Dirijo <b>Programaciones MARK</b>. Reprogramación, desarrollo web y tiendas online centradas en rendimiento y conversión. Idiomas: holandés, español e inglés.</p>
+      </div>
+      <div class="grid">
+        <div class="card"><h3>Reprogramación</h3><p>Auditoría, limpieza, velocidad.</p></div>
+        <div class="card"><h3>Web Corporativa</h3><p>Interfaz moderna y accesible.</p></div>
+        <div class="card"><h3>Tienda Online</h3><p>Pagos, envíos, catálogo.</p></div>
+      </div>
+      <div class="grid">
+        <div class="card"><h3>Contacto rápido</h3>
+          <p>Tel: <a href="tel:656610392" style="color:#fff">656 610 392</a> ·
+             Email: <a href="mailto:programaciones.mark@gmail.com" style="color:#fff">programaciones.mark@gmail.com</a> ·
+             IG: <a href="https://instagram.com/webprogram.mark" target="_blank" rel="noopener" style="color:#fff">@webprogram.mark</a></p>
+        </div>
+      </div>
+
+      <!-- IA -->
+      <div class="ai-box" data-ai>
+        <div class="ai-head">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 017 7v2h1a2 2 0 012 2v7h-8v-4H10v4H2v-7a2 2 0 01-2-2h1V9a7 7 0 017-7z"/></svg>
+          <strong>Habla con la IA</strong>
+        </div>
+        <div class="ai-messages"></div>
+        <div class="ai-input">
+          <input type="text" placeholder="Pregunta sobre servicios, precios o contacto..." />
+          <button>Enviar</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Precios -->
+  <section id="precios" class="section" data-active="false">
+    <div class="sec-head"><h2>Precios y Producto <span class="viewers" id="v-precios">👀 9 viendo</span></h2></div>
+    <div class="sec-body">
+      <div class="grid">
+        <div class="card"><h3>Reprogramación</h3><p><strong>199 €</strong> <span class="pill">Corrección técnica</span></p><div class="details">Auditoría, plan y 3h de mejoras clave.</div></div>
+        <div class="card"><h3>Web Corporativa</h3><p><strong>499 €</strong> <span class="pill">Diseño profesional</span></p><div class="details">Hasta 5 secciones, responsive y despliegue.</div></div>
+        <div class="card"><h3>Tienda Online</h3><p><strong>399 €</strong> <span class="pill">E-commerce completo</span></p><div class="details">Catálogo inicial, pagos y envíos.</div></div>
+      </div>
+
+      <!-- IA -->
+      <div class="ai-box" data-ai>
+        <div class="ai-head"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 017 7v2h1a2 2 0 012 2v7h-8v-4H10v4H2v-7a2 2 0 01-2-2h1V9a7 7 0 017-7z"/></svg><strong>Habla con la IA</strong></div>
+        <div class="ai-messages"></div>
+        <div class="ai-input"><input type="text" placeholder="Pregúntame sobre precios y opciones..." /><button>Enviar</button></div>
+      </div>
+    </div>
+
+    <!-- Botones fijos SOLO en la sección de precios -->
+    <div class="floating-btns">
+      <a href="#contacto" class="quote" title="Ir a contacto">
+        <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 00-3.16 19.47c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.1-1.47-1.1-1.47-.9-.6.07-.59.07-.59 1 .07 1.53 1.03 1.53 1.03.89 1.53 2.34 1.09 2.91.83.09-.65.35-1.09.64-1.34-2.22-.26-4.55-1.11-4.55-4.94a3.86 3.86 0 011.03-2.68 3.58 3.58 0 01.1-2.65s.84-.27 2.75 1.03a9.45 9.45 0 015 0c1.91-1.3 2.75-1.03 2.75-1.03.56 1.26.45 2.52.1 2.65a3.86 3.86 0 011.03 2.68c0 3.84-2.33 4.67-4.56 4.93.36.31.68.93.68 1.88v2.79c0 .26.18.58.69.48A10 10 0 0012 2z"/></svg>
+        Pedir presupuesto
+      </a>
+      <a href="https://web.telegram.org/k/#-2935048091" target="_blank" rel="noopener" class="telegram" title="Abrir Telegram">
+        <svg viewBox="0 0 24 24"><path d="M9.999 15.2l-.35 4.88c.5 0 .71-.22.97-.48l2.32-2.2 4.81 3.53c.89.5 1.52.24 1.77-.82l3.21-15.03v-.03c.29-1.35-.49-1.88-1.36-1.56l-18.73 7.2c-1.28.5-1.26 1.22-.22 1.55l4.79 1.5 11.1-6.99c.52-.33 1-.15 .6.18L9.999 15.2z"/></svg>
+        Telegram
+      </a>
+    </div>
+  </section>
+
+  <!-- Contacto (solo formulario) -->
+  <section id="contacto" class="section" data-active="false">
+    <div class="sec-head"><h2>Horario y Contacto <span class="viewers" id="v-contacto">👀 12 viendo</span></h2></div>
+    <div class="sec-body">
+      <div class="grid">
+        <div class="card">
+          <h3>Horario por días</h3>
+          <table style="width:100%;border-collapse:collapse;color:#fff;font-size:15px">
+            <tr><td style="padding:6px 0">Lunes</td><td style="text-align:right">10:00 – 14:00 | 18:00 – 22:00</td></tr>
+            <tr><td style="padding:6px 0">Martes</td><td style="text-align:right">10:00 – 14:00 | 18:00 – 22:00</td></tr>
+            <tr><td style="padding:6px 0">Miércoles</td><td style="text-align:right">10:00 – 14:00 | 18:00 – 22:00</td></tr>
+            <tr><td style="padding:6px 0">Jueves</td><td style="text-align:right">10:00 – 14:00 | 18:00 – 22:00</td></tr>
+            <tr><td style="padding:6px 0">Viernes</td><td style="text-align:right">10:00 – 14:00 | 18:00 – 22:00</td></tr>
+            <tr><td style="padding:6px 0">Sábado</td><td style="text-align:right;color:#b7a8ff">Sin horario</td></tr>
+            <tr><td style="padding:6px 0">Domingo</td><td style="text-align:right;color:#b7a8ff">Sin horario</td></tr>
+          </table>
+        </div>
+
+        <div class="panel">
+          <h3>Envíame un mensaje</h3>
+          <p style="margin:6px 0 10px;color:#dcd6ff">Se envía automáticamente a mi correo.</p>
+          <form id="fs-form" action="https://formspree.io/f/xgvnpjpp" method="POST" novalidate>
+            <label for="name">Nombre</label>
+            <input id="name" type="text" name="Nombre" required>
+            <label for="email">Email</label>
+            <input id="email" type="email" name="Email" required>
+            <label for="msg">Mensaje</label>
+            <textarea id="msg" name="Mensaje" rows="5" required></textarea>
+            <input type="hidden" name="_subject" value="Nuevo mensaje desde Programaciones MARK">
+            <input type="text" name="_gotcha" style="display:none">
+            <button type="submit" class="btn">Enviar mensaje</button>
+            <span id="fs-status"></span>
+          </form>
+          <p style="margin-top:8px;font-size:12px;color:#9ea0ff">Respondo en holandés, español e inglés.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Cuenta (sin IA) -->
+  <section id="cuenta" class="section" data-active="false">
+    <div class="sec-head"><h2>Cuenta <span class="viewers" id="v-cuenta">👀 7 viendo</span></h2></div>
+    <div class="sec-body">
+      <div class="panel" style="max-width:560px">
+        <h3>Crear cuenta / Iniciar sesión</h3>
+        <label for="acc-name">Nombre (opcional)</label>
+        <input id="acc-name" type="text" autocomplete="name">
+        <label for="acc-email">Email</label>
+        <input id="acc-email" type="email" autocomplete="email" required>
+        <label for="acc-pass">Contraseña</label>
+        <input id="acc-pass" type="password" autocomplete="current-password" required>
+        <div class="cta-row" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">
+          <button id="btn-signup" type="button" class="btn">Crear cuenta</button>
+          <button id="btn-login" type="button" class="btn" style="background:#b7a8ff">Iniciar sesión</button>
+          <button id="btn-logout" type="button" class="btn" style="background:#111;color:#fff;border:1px solid rgba(167,139,250,.35)">Salir</button>
+        </div>
+        <p id="acc-status" style="margin-top:10px;color:#dcd6ff;font-size:14px">Estado: invitado</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Reseñas (con envío de clientes) -->
+  <section id="reviews" class="section" data-active="false">
+    <div class="sec-head"><h2>Reseñas <span class="viewers" id="v-reviews">👀 9 viendo</span></h2></div>
+    <div class="sec-body">
+      <!-- Lista de reseñas -->
+      <div id="reviews-list" class="grid" aria-live="polite"></div>
+
+      <!-- Formulario nueva reseña -->
+      <div class="panel" style="max-width:720px;margin-top:14px">
+        <h3>Escribe tu reseña</h3>
+        <form id="review-form" novalidate>
+          <label for="rv-name">Nombre *</label>
+          <input id="rv-name" type="text" required>
+
+          <label for="rv-company">Empresa / Proyecto (opcional)</label>
+          <input id="rv-company" type="text" placeholder="Ej.: Clínica Costa">
+
+          <label>Valoración *</label>
+          <div id="rv-stars" style="display:flex;gap:8px;margin:6px 0 10px">
+            <button type="button" data-v="1" class="btn" aria-label="1 estrella">★</button>
+            <button type="button" data-v="2" class="btn" aria-label="2 estrellas">★</button>
+            <button type="button" data-v="3" class="btn" aria-label="3 estrellas">★</button>
+            <button type="button" data-v="4" class="btn" aria-label="4 estrellas">★</button>
+            <button type="button" data-v="5" class="btn" aria-label="5 estrellas">★</button>
+          </div>
+
+          <label for="rv-text">Comentario *</label>
+          <textarea id="rv-text" rows="4" required placeholder="Cuenta tu experiencia"></textarea>
+
+          <button type="submit" class="btn">Publicar reseña</button>
+          <span id="rv-status" style="margin-left:10px;font-size:13px;color:#b7a8ff"></span>
+        </form>
+        <p style="margin-top:8px;font-size:12px;color:#9ea0ff">Las reseñas se guardan en tu navegador.</p>
+      </div>
+
+      <!-- IA en reseñas -->
+      <div class="ai-box" data-ai>
+        <div class="ai-head"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 017 7v2h1a2 2 0 012 2v7h-8v-4H10v4H2v-7a2 2 0 01-2-2h1V9a7 7 0 017-7z"/></svg><strong>Habla con la IA</strong></div>
+        <div class="ai-messages"></div>
+        <div class="ai-input"><input type="text" placeholder="Pregunta sobre reseñas o casos de uso..." /><button>Enviar</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Términos y Condiciones -->
+  <section id="terminos" class="section" data-active="false">
+    <div class="sec-head"><h2>Términos y Condiciones <span class="viewers" id="v-terminos">👀 7 viendo</span></h2></div>
+    <div class="sec-body">
+      <div class="card" style="line-height:1.6">
+        <h3>1. Objeto</h3>
+        <p>Programaciones MARK ofrece servicios de reprogramación, desarrollo de páginas web y tiendas online.</p>
+        <h3>2. Presupuestos y precios</h3>
+        <ul><li>Reprogramación: 199 €</li><li>Página web: 499 €</li><li>Tienda online: 399 €</li></ul>
+        <p>Los precios incluyen desarrollo según el alcance acordado. Cualquier extra se cotiza aparte.</p>
+        <h3>3. Pagos</h3><p>50% al inicio y 50% a la entrega, salvo acuerdo distinto.</p>
+        <h3>4. Entregables y revisiones</h3><p>Incluye una ronda de ajustes menores tras la entrega.</p>
+        <h3>5. Propiedad intelectual</h3><p>Transferencia tras el pago completo. Terceros bajo sus licencias.</p>
+        <h3>6. Contenidos del cliente</h3><p>El cliente garantiza derechos sobre materiales aportados.</p>
+        <h3>7. Uso aceptable</h3><p>Prohibido uso ilícito o infractor.</p>
+        <h3>8. Soporte</h3><p>Bugs críticos 15 días. Mantenimiento aparte.</p>
+        <h3>9. Privacidad</h3><p>Datos de contacto solo para responder consultas.</p>
+        <h3>10. Limitación de responsabilidad</h3><p>Sin garantía de terceros. Límite: importe facturado.</p>
+        <h3>11. Modificaciones</h3><p>Actualizable. Aplica la versión publicada.</p>
+        <h3>12. Ley aplicable</h3><p>Jurisdicción local del prestador.</p>
+        <h3>13. Contacto</h3>
+        <p>Email: <a href="mailto:programaciones.mark@gmail.com">programaciones.mark@gmail.com</a> · Tel: <a href="tel:656610392">656 610 392</a></p>
+        <p style="margin-top:10px;color:#b7a8ff;font-size:13px">Última actualización: <span id="tc-date">hoy</span>.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>© <span id="year"></span> Programaciones MARK — Jamie Markestein</footer>
+</main>
+
+<script>
+/* Título animado */
+(()=>{const el=document.getElementById('brandTitle'),final='Programaciones MARK',chars=['?','=','(',')','/','&','"','=', '·','?','"'],duration=1600,startDelay=300;
+function scramble(){const st=performance.now(),L=final.length;function f(t){const p=Math.min(1,(t-st)/duration),r=Math.floor(p*L);let out='';for(let i=0;i<L;i++)out+=i<r?final[i]:chars[Math.floor(Math.random()*chars.length)];el.textContent=out;p<1?requestAnimationFrame(f):el.textContent=final;}requestAnimationFrame(f)}el.textContent=''.padEnd(final.length,'?');setTimeout(scramble,startDelay)})();
+
+/* Navegación y transiciones */
+const btns=[...document.querySelectorAll('.nav-dock .nav-btn')];
+const pv=document.getElementById('preview');
+function positionPreview(btn){const r=btn.getBoundingClientRect(); pv.style.top=(r.top+window.scrollY)+'px'}
+btns.forEach(b=>{
+  b.addEventListener('mouseenter',()=>{pv.innerHTML=`<h4>${b.dataset.title||'Sección'}</h4><p>${b.dataset.desc||''}</p>`;positionPreview(b);pv.style.display='block'});
+  b.addEventListener('mouseleave',()=>pv.style.display='none');
+});
+document.getElementById('year').textContent=new Date().getFullYear();
+
+let switching=false;
+function animateIn(el){el.classList.remove('anim-out');void el.offsetWidth;el.classList.add('anim-in')}
+function show(id){
+  if(switching) return;
+  const next=document.getElementById(id);
+  const current=document.querySelector('.section[data-active="true"]');
+  if(current && current.id===id) return;
+  switching=true;
+  btns.forEach(b=>b.setAttribute('aria-current', String(b.dataset.target===id)));
+  if(current){
+    current.classList.remove('anim-in');current.classList.add('anim-out');
+    current.addEventListener('animationend',function handler(){
+      current.removeEventListener('animationend',handler);
+      current.dataset.active='false';current.style.display='none';
+      next.style.display='block';next.dataset.active='true';animateIn(next);
+      history.replaceState(null,'','#'+id);window.scrollTo({top:0,behavior:'smooth'});switching=false;
+    },{once:true});
+  }else{next.style.display='block';next.dataset.active='true';animateIn(next);switching=false;}
+}
+btns.forEach(b=>b.addEventListener('click',()=>show(b.dataset.target)));
+
+/* Contadores 7–20 (incluye términos) */
+const counters={
+  indice:document.getElementById('v-indice'),
+  precios:document.getElementById('v-precios'),
+  contacto:document.getElementById('v-contacto'),
+  reviews:document.getElementById('v-reviews'),
+  cuenta:document.getElementById('v-cuenta'),
+  terminos:document.getElementById('v-terminos')
+};
+function rNum(){return Math.floor(7+Math.random()*14)}
+;(function tick(){Object.values(counters).forEach(el=>el&&(el.textContent=`👀 ${rNum()} viendo`));setTimeout(tick,9000+Math.random()*11000)})();
+
+/* Fecha Términos */
+const tc=document.getElementById('tc-date'); if(tc){tc.textContent=new Date().toLocaleDateString('es-ES')}
+
+/* Formspree */
+const form=document.getElementById('fs-form'), fs=document.getElementById('fs-status');
+if(form){form.addEventListener('submit',async e=>{
+  e.preventDefault(); fs.textContent='Enviando...';
+  try{const r=await fetch(form.action,{method:'POST',body:new FormData(form),headers:{'Accept':'application/json'}});
+      if(r.ok){fs.style.color='#22c55e';fs.textContent='Mensaje enviado correctamente.';form.reset();}
+      else{fs.style.color='#ef4444';fs.textContent='Error al enviar. Inténtalo de nuevo.';}
+  }catch{fs.style.color='#ef4444';fs.textContent='Error de red.';}
+});}
+
+/* Aurora blobs */
+(()=>{const L=6,w=document.getElementById('aurora');for(let i=0;i<L;i++){const b=document.createElement('div');b.className='blob';b.style.setProperty('--x',Math.random()*80-10+'vmax');b.style.setProperty('--y',Math.random()*60-20+'vmax');b.style.setProperty('--s',(0.7+Math.random()*1.1).toFixed(2));b.style.setProperty('--dur',(30+Math.random()*40).toFixed(1)+'s');w.append(b);}})();
+
+/* Estrellas */
+const c=document.getElementById('stars'),ctx=c.getContext('2d');let W,H,stars=[];
+function resize(){W=c.width=innerWidth;H=c.height=innerHeight;stars=Array.from({length:Math.floor(W*H/9000)},()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.3+0.4,t:Math.random()*6.28}))}
+function draw(){ctx.clearRect(0,0,W,H);const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#05010d');g.addColorStop(1,'#0b0017');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);for(const s of stars){s.t+=.015;const a=.5+.5*Math.sin(s.t);ctx.globalAlpha=a;ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,6.28);ctx.fillStyle='#fff';ctx.fill();ctx.globalAlpha=a*.35;ctx.beginPath();ctx.arc(s.x,s.y,s.r*3,0,6.28);ctx.fillStyle='rgba(167,139,250,0.35)';ctx.fill();}requestAnimationFrame(draw)}
+addEventListener('resize',resize);resize();draw();
+
+/* Cometas */
+const sky=document.getElementById('sky');
+function comet(){const d=document.createElement('div');d.className='comet';d.innerHTML='<div class="tail"></div><div class="head"></div>';const w=innerWidth,h=innerHeight,sx=Math.random()<.5?-200:w+200,sy=-Math.random()*h*.25,ex=sx<0?w+240:-240,ey=h+200*Math.random(),rot=-20+(Math.random()*10-5);d.style.setProperty('--sx',sx+'px');d.style.setProperty('--sy',sy+'px');d.style.setProperty('--ex',ex+'px');d.style.setProperty('--ey',ey+'px');d.style.setProperty('--rot',rot+'deg');d.style.animation=`fly ${6+Math.random()*6}s ease-in forwards`;sky.append(d);d.addEventListener('animationend',()=>d.remove());}
+(function loop(){for(let i=0;i<1+Math.floor(Math.random()*2);i++)setTimeout(comet,i*250);setTimeout(loop,1500+Math.random()*3000)})();
+
+/* Firebase Auth */
+window.addEventListener('load', () => {
+  const firebaseConfig={apiKey:"TU_API_KEY",authDomain:"TU_AUTH_DOMAIN",projectId:"TU_PROJECT_ID",appId:"TU_APP_ID"};
+  try{firebase.initializeApp(firebaseConfig);}catch(e){}
+  const auth=firebase.auth();
+  const elName=document.getElementById('acc-name');
+  const elEmail=document.getElementById('acc-email');
+  const elPass=document.getElementById('acc-pass');
+  const st=document.getElementById('acc-status');
+  const signup=async()=>{try{const {user}=await auth.createUserWithEmailAndPassword(elEmail.value,elPass.value);if(elName.value)await user.updateProfile({displayName:elName.value});st.textContent=`Cuenta creada: ${user.email}`;st.style.color='#22c55e'}catch(e){st.textContent='Error: '+(e.message||e);st.style.color='#ef4444'}};
+  const login=async()=>{try{const {user}=await auth.signInWithEmailAndPassword(elEmail.value,elPass.value);st.textContent=`Sesión iniciada: ${user.email}`;st.style.color='#22c55e'}catch(e){st.textContent='Error: '+(e.message||e);st.style.color='#ef4444'}};
+  const logout=async()=>{try{await auth.signOut();st.textContent='Sesión cerrada';st.style.color='#dcd6ff'}catch(e){st.textContent='Error al cerrar sesión';st.style.color='#ef4444'}};
+  const b1=document.getElementById('btn-signup'),b2=document.getElementById('btn-login'),b3=document.getElementById('btn-logout');
+  if(b1)b1.onclick=signup;if(b2)b2.onclick=login;if(b3)b3.onclick=logout;
+  auth.onAuthStateChanged(u=>{if(u){st.textContent=`Conectado: ${u.displayName||u.email}`;st.style.color='#22c55e'}else{st.textContent='Estado: invitado';st.style.color='#dcd6ff'}});
+});
+
+/* IA embebida sin backend (NO en Contacto, Cuenta ni Términos) */
+function initAIBoxes(){
+  const KB=[
+    {q:/precio|cu[eé]nto|coste|vale/i,a:"Precios: Reprogramación 199 €, Web 499 €, Tienda 399 €."},
+    {q:/reprogram/i,a:"Reprogramación: auditoría, limpieza y rendimiento."},
+    {q:/web/i,a:"Web corporativa: hasta 5 secciones, responsive y despliegue."},
+    {q:/tienda|e-?commerce/i,a:"Tienda online: catálogo inicial, pagos y envíos."},
+    {q:/horario|hora/i,a:"Horario L–V: 10:00–14:00 y 18:00–22:00. Sábado y domingo sin horario."},
+    {q:/email|correo/i,a:"Email: programaciones.mark@gmail.com"},
+    {q:/tel[eé]fono|m[oó]vil|llamar/i,a:"Teléfono: 656 610 392"},
+    {q:/instagram|ig/i,a:"Instagram: @webprogram.mark"},
+    {q:/idioma|hablas|lengua/i,a:"Respondo en holandés, español e inglés."}
+  ];
+  const fallback="Puedo ayudarte con precios, horario y contacto. Pregunta algo concreto.";
+  document.querySelectorAll('[data-ai]').forEach(box=>{
+    if(box.closest('#contacto')||box.closest('#cuenta')||box.closest('#terminos')){box.remove();return;}
+    const msgs=box.querySelector('.ai-messages');
+    const input=box.querySelector('.ai-input input');
+    const btn=box.querySelector('.ai-input button');
+    function addMsg(t,who){const d=document.createElement('div');d.className='ai-msg '+who;d.textContent=t;msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight}
+    function replyTo(q){const hit=KB.find(r=>r.q.test(q));const resp=hit?hit.a:fallback;addMsg("Escribiendo...",'bot');const ph=msgs.lastChild;setTimeout(()=>{ph.textContent=resp},350+Math.min(1200,resp.length*12))}
+    btn.addEventListener('click',()=>{const t=(input.value||'').trim();if(!t)return;addMsg(t,'user');input.value='';replyTo(t)});
+    input.addEventListener('keydown',e=>{if(e.key==='Enter')btn.click()});
+    addMsg("Hola, soy la IA de Programaciones MARK. ¿En qué te ayudo?",'bot');
+  });
+}
+window.addEventListener('DOMContentLoaded',initAIBoxes);
+
+/* Reseñas de usuarios (localStorage) */
+(function reviewsModule(){
+  const KEY='pmk_reviews';
+  const list=document.getElementById('reviews-list');
+  const form=document.getElementById('review-form');
+  if(!list||!form) return;
+
+  const seed=[
+    {n:'Marta P.', c:'Clínica Costa', s:5, t:'Refactor impecable. La web vuela.'},
+    {n:'David R.', c:'Market La Nucía', s:5, t:'Checkout y catálogo en días. Comunicación clara.'},
+    {n:'Sergio L.', c:'Reformas Benidorm', s:4, t:'Buen SEO y diseño. Más leads.'}
+  ];
+  if(!localStorage.getItem(KEY)) localStorage.setItem(KEY, JSON.stringify(seed));
+
+  const esc=s=>String(s).replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+  const get=()=>{try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch{return []}};
+  const set=a=>localStorage.setItem(KEY, JSON.stringify(a.slice(0,100)));
+
+  const card=r=>{
+    const stars='★'.repeat(r.s||0)+'☆'.repeat(5-(r.s||0));
+    return `<div class="card"><h3>${stars} — ${esc(r.n||'Anónimo')}${r.c?`, ${esc(r.c)}`:''}</h3><p>“${esc(r.t||'')}”</p></div>`;
+  };
+  function render(){const data=get();list.innerHTML=data.map(card).join('')||'<div class="card"><p>Aún no hay reseñas.</p></div>'}
+
+  let sel=0;
+  const starBtns=[...document.querySelectorAll('#rv-stars button')];
+  const paint=k=>starBtns.forEach((b,i)=>{b.style.background=i<k?'#fff':'var(--pri2)';b.style.color='#000'});
+  starBtns.forEach(b=>b.addEventListener('click',()=>{sel=+b.dataset.v;paint(sel)}));
+
+  form.addEventListener('submit',e=>{
+    e.preventDefault();
+    const st=document.getElementById('rv-status');
+    const n=document.getElementById('rv-name').value.trim();
+    const c=document.getElementById('rv-company').value.trim();
+    const t=document.getElementById('rv-text').value.trim();
+
+    if(!n || !t || sel<1){st.style.color='#ef4444';st.textContent='Completa nombre, comentario y estrellas.';return;}
+    if(/https?:\/\//i.test(t)){st.style.color='#ef4444';st.textContent='No se permiten enlaces.';return;}
+
+    const data=get();
+    data.unshift({n,c,s:sel,t});
+    set(data); render(); form.reset(); sel=0; paint(0);
+    st.style.color='#22c55e'; st.textContent='Reseña publicada.'; setTimeout(()=>st.textContent='',1800);
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
